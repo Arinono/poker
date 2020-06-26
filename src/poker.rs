@@ -105,67 +105,58 @@ pub struct Hand {
 }
 
 pub fn new_hand(players: Vec<Player>, deck: Deck) -> Hand {
-    let mut vector: Vec<(Player, PlayerState)> = vec![];
-    for p in players {
-        vector.push((p, PlayerState::WaitingToBeDealt));
-    }
     Hand {
-        players: vector,
+        players: players
+            .into_iter()
+            .map(|p| (p, PlayerState::WaitingToBeDealt))
+            .collect::<Vec<(Player, PlayerState)>>(),
         pot: 0,
-        deck,
+        deck
     }
 }
 
 pub fn deal(hand: Hand) -> Hand {
-    let players = hand.players.clone();
-    let mut new_players: Vec<(Player, PlayerState)> = vec![];
-    let mut new_deck = hand.deck;
-    let mut i: u32 = 0;
-
-    for p in players {
-        if i == 0 {
-            new_players.push((p.0, PlayerState::Active(
-                HoleCards(
-                    new_deck.remove(0),
-                    new_deck.remove(0)
-                )
-            )))
-        } else {
-            new_players.push((p.0, PlayerState::Dealt(
-                HoleCards(
-                    new_deck.remove(0),
-                    new_deck.remove(0)
-                )
-            )))
-        }
-        i += 1;
-    }
-
+    let mut i = -1;
+    let mut deck = hand.deck.clone();
     Hand {
-        players: new_players,
+        players: hand.players
+            .iter()
+            .map(|p| {
+                let hole = HoleCards(deck.remove(0), deck.remove(0));
+
+                i += 1;
+                if i == 0 {
+                    (
+                        p.0.clone(),
+                        PlayerState::Active(hole)
+                    )
+                } else {
+                    (
+                        p.0.clone(),
+                        PlayerState::Dealt(hole)
+                    )
+                }
+            })
+            .collect(),
         pot: hand.pot,
-        deck: new_deck
+        deck: deck
     }
 }
 
 pub fn play(hand: Hand, mv: PlayerMove) -> Hand {
     match mv {
         PlayerMove::Bet(num) => {
-            let mut new_pot = hand.pot.clone();
-            new_pot += num;
             Hand { 
                 players: hand.players, 
                 deck: hand.deck, 
-                pot: new_pot
+                pot: num
             }
         },
         PlayerMove::Raise(num) => {
-            let mut new_pot = hand.pot.clone();
-            new_pot += num;
             Hand { 
                 players: hand.players, 
                 deck: hand.deck, 
-                pot: new_pot
+                pot: hand.pot + num
             }
         },
         PlayerMove::Fold => {
