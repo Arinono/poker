@@ -39,7 +39,22 @@ pub enum Rank {
 
 impl std::fmt::Display for Rank {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "")
+        match *self {
+            Rank::Ace => write!(f, "Ace"),
+            Rank::One => write!(f, "One"),
+            Rank::Two => write!(f, "Two"),
+            Rank::Three => write!(f, "Three"),
+            Rank::Four => write!(f, "Four"),
+            Rank::Five => write!(f, "Five"),
+            Rank::Six => write!(f, "Six"),
+            Rank::Seven => write!(f, "Seven"),
+            Rank::Eight => write!(f, "Eight"),
+            Rank::Nine => write!(f, "Nine"),
+            Rank::Ten => write!(f, "Ten"),
+            Rank::Jack => write!(f, "Jack"),
+            Rank::Queen => write!(f, "Queen"),
+            Rank::King => write!(f, "King"),
+        }
     }
 }
 
@@ -48,7 +63,7 @@ pub struct Card(Suit, Rank);
 
 impl std::fmt::Display for Card {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "")
+        write!(f, "({}, {})", self.0, self.1)
     }
 }
 
@@ -81,6 +96,7 @@ pub enum PlayerState {
     Folded,
 }
 
+#[derive(Clone)]
 pub struct Hand {
     players: Vec<(Player, PlayerState)>,
     deck: Deck,
@@ -89,19 +105,84 @@ pub struct Hand {
 }
 
 pub fn new_hand(players: Vec<Player>, deck: Deck) -> Hand {
+    let mut vector: Vec<(Player, PlayerState)> = vec![];
+    for p in players {
+        vector.push((p, PlayerState::WaitingToBeDealt));
+    }
     Hand {
-        players: vec![],
+        players: vector,
         pot: 0,
         deck,
     }
 }
 
 pub fn deal(hand: Hand) -> Hand {
-    hand
+    let players = hand.players.clone();
+    let mut new_players: Vec<(Player, PlayerState)> = vec![];
+    let mut new_deck = hand.deck;
+    let mut i: u32 = 0;
+
+    for p in players {
+        if i == 0 {
+            new_players.push((p.0, PlayerState::Active(
+                HoleCards(
+                    new_deck.remove(0),
+                    new_deck.remove(0)
+                )
+            )))
+        } else {
+            new_players.push((p.0, PlayerState::Dealt(
+                HoleCards(
+                    new_deck.remove(0),
+                    new_deck.remove(0)
+                )
+            )))
+        }
+        i += 1;
+    }
+
+    Hand {
+        players: new_players,
+        pot: hand.pot,
+        deck: new_deck
+    }
 }
 
 pub fn play(hand: Hand, mv: PlayerMove) -> Hand {
-    hand
+    match mv {
+        PlayerMove::Bet(num) => {
+            let mut new_pot = hand.pot.clone();
+            new_pot += num;
+            Hand { 
+                players: hand.players, 
+                deck: hand.deck, 
+                pot: new_pot
+            }
+        },
+        PlayerMove::Raise(num) => {
+            let mut new_pot = hand.pot.clone();
+            new_pot += num;
+            Hand { 
+                players: hand.players, 
+                deck: hand.deck, 
+                pot: new_pot
+            }
+        },
+        PlayerMove::Fold => {
+            let mut new_players = hand.players.clone();
+
+            if let Some(first) = new_players.first_mut() {
+                first.1 = PlayerState::Folded;
+            }
+
+            Hand {
+                players: new_players,
+                deck: hand.deck,
+                pot: hand.pot
+            }
+        }
+        _ => hand
+    }
 }
 
 // Unused but potentially interesting follow-on structures
